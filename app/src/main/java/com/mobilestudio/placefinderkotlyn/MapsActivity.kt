@@ -3,6 +3,7 @@ package com.mobilestudio.placefinderkotlyn
 import android.net.Uri
 import android.support.v4.app.FragmentActivity
 import android.os.Bundle
+import android.widget.Toast
 import com.android.volley.Request
 import com.android.volley.Response
 import com.android.volley.VolleyError
@@ -13,13 +14,18 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.gson.Gson
+import com.google.gson.JsonParseException
+import mx.mobilestudio.placefinderkotlin.model.ApiFourSquareResponse
+import mx.mobilestudio.placefinderkotlin.model.Venue
 
 class MapsActivity : FragmentActivity(), OnMapReadyCallback, Response.Listener<String> , Response.ErrorListener {
 
 
-    private var mMap: GoogleMap? = null
+    private lateinit var  mMap: GoogleMap
 
     var latitud: String = ""
 
@@ -47,8 +53,12 @@ class MapsActivity : FragmentActivity(), OnMapReadyCallback, Response.Listener<S
 
         // Add a marker in Sydney and move the camera
         val mobileStudio = LatLng(19.395209, -99.1544203)
-        mMap!!.addMarker(MarkerOptions().position(mobileStudio).title("Marker in Mobile Studio"))
-        mMap!!.moveCamera(CameraUpdateFactory.newLatLng(mobileStudio))
+        mMap!!.addMarker(MarkerOptions().position(mobileStudio).title("Marker in Mobile Studio")
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)))
+        mMap!!.moveCamera(CameraUpdateFactory.newLatLngZoom(mobileStudio,13f))
+
+        callFourSquareApi("bar")
+
     }
 
     private fun callFourSquareApi(query : String ){
@@ -76,10 +86,55 @@ class MapsActivity : FragmentActivity(), OnMapReadyCallback, Response.Listener<S
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun onResponse(p0: String?) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun onResponse(response: String?) {
+        val gson = Gson()
+
+        try {
+            // EN ESTA LINEA DE CODIGO EFECTUO  EL PARSEO DEL JSON (TEXTO PLANO) A MIS CLASES KOTLYN
+
+            val apiFourSquareResponse = gson.fromJson<ApiFourSquareResponse>(response, ApiFourSquareResponse::class.java!!)
+            var unwrappedVenues : List<Venue>? = null
+
+            if (response != null) {
+                Toast.makeText(this, "response", Toast.LENGTH_LONG).show();
+
+                // Force unWrap
+                //unwrappedVenues = apiFourSquareResponse.response!!.venues // el truco para realiza para un uwrap en poner dos signos de admiracion !! (unwrap forzoso)
+
+                // para hacer el unwrapp inseguro
+                val unwrappedResponse = apiFourSquareResponse.response?.let { it } ?: return
+
+                unwrappedVenues = unwrappedResponse.venues?.let { it } ?: return
+
+            }
 
 
+            piantFourSquareMarkersinMap(unwrappedVenues)
+
+        } catch (e: JsonParseException) {
+
+        }
+
+    }
+
+    fun piantFourSquareMarkersinMap(venues: List<Venue>?) {
+
+
+        for (currentPlace in venues!!) {
+
+            val lat = currentPlace.location!!.lat
+
+            val lon = currentPlace.location!!.lng
+
+            val myOptions = MarkerOptions()
+
+            myOptions.position(LatLng(lat as Double, lon as Double))
+
+            myOptions.title(currentPlace.name)
+
+            mMap?.addMarker(myOptions)
+
+        }
 
     }
 
